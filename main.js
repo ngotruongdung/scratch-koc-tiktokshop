@@ -5,6 +5,7 @@ const scraper = require("./scraper.js");
 
 let mainWindow = null;
 let appState = "idle"; // idle, waiting-login, scraping, completed
+let updateAvailable = false;
 let updateReadyToInstall = false;
 
 const isPackaged = app.isPackaged;
@@ -59,21 +60,23 @@ function sendUpdateState(status, extra = {}) {
 }
 
 function setupAutoUpdater() {
-  autoUpdater.autoDownload = true;
+  autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on("checking-for-update", () => {
-    sendLog("Dang kiem tra phien ban moi...");
+    sendLog("Đang kiểm tra phiên bản mới...");
     sendUpdateState("checking");
   });
 
   autoUpdater.on("update-available", (info) => {
-    sendLog(`Co phien ban moi ${info.version}. Dang tai cap nhat...`);
-    sendUpdateState("downloading");
+    updateAvailable = true;
+    sendLog(`Có phiên bản mới ${info.version}. Bấm nút cập nhật nếu muốn tải và cài đặt.`);
+    sendUpdateState("available", { version: info.version });
   });
 
   autoUpdater.on("update-not-available", () => {
-    sendLog("Ban dang dung phien ban moi nhat.");
+    updateAvailable = false;
+    sendLog("Bạn đang dùng phiên bản mới nhất.");
     sendUpdateState("idle");
   });
 
@@ -84,23 +87,23 @@ function setupAutoUpdater() {
 
   autoUpdater.on("update-downloaded", async (info) => {
     updateReadyToInstall = true;
-    sendLog(`Da tai xong phien ban ${info.version}.`);
+    sendLog(`Đã tải xong phiên bản ${info.version}. Bấm cập nhật để khởi động lại và cài đặt.`);
     sendUpdateState("downloaded", { version: info.version });
 
     if (appState === "scraping") {
-      sendLog("Cap nhat da san sang. Hay dung tien trinh cao roi bam cap nhat de khoi dong lai.");
+      sendLog("Cập nhật đã sẵn sàng. Hãy dừng tiến trình cào rồi bấm cập nhật để khởi động lại.");
       return;
     }
 
     if (!mainWindow) return;
     const result = await dialog.showMessageBox(mainWindow, {
       type: "info",
-      buttons: ["Khoi dong lai ngay", "De sau"],
+      buttons: ["Khởi động lại ngay", "Để sau"],
       defaultId: 0,
       cancelId: 1,
-      title: "Cap nhat san sang",
-      message: `BOMAX KOC Worker ${info.version} da tai xong.`,
-      detail: "Khoi dong lai app de hoan tat cap nhat.",
+      title: "Cập nhật sẵn sàng",
+      message: `BOMAX KOC Worker ${info.version} đã tải xong.`,
+      detail: "Khởi động lại app để hoàn tất cập nhật.",
     });
 
     if (result.response === 0) {
@@ -109,14 +112,14 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on("error", (error) => {
-    sendLog(`Loi cap nhat: ${error.message}`);
+    sendLog(`Lỗi cập nhật: ${error.message}`);
     sendUpdateState("idle");
   });
 }
 
 function checkForUpdates(manual = false) {
   if (!app.isPackaged) {
-    sendLog("Auto update chi hoat dong tren ban da dong goi.");
+    sendLog("Tính năng cập nhật chỉ hoạt động trên bản đã đóng gói.");
     sendUpdateState("idle");
     return;
   }
@@ -124,14 +127,39 @@ function checkForUpdates(manual = false) {
   if (updateReadyToInstall) {
     sendUpdateState("downloaded");
     if (manual) {
-      sendLog("Ban cap nhat da san sang. Bam cap nhat de khoi dong lai.");
+      sendLog("Bản cập nhật đã sẵn sàng. Bấm cập nhật để khởi động lại.");
     }
     return;
   }
 
   autoUpdater.checkForUpdates().catch((error) => {
-    sendLog(`Loi kiem tra cap nhat: ${error.message}`);
+    sendLog(`Lỗi kiểm tra cập nhật: ${error.message}`);
     sendUpdateState("idle");
+  });
+}
+
+function downloadUpdate() {
+  if (!app.isPackaged) {
+    sendLog("Tính năng cập nhật chỉ hoạt động trên bản đã đóng gói.");
+    sendUpdateState("idle");
+    return;
+  }
+
+  if (updateReadyToInstall) {
+    autoUpdater.quitAndInstall(false, true);
+    return;
+  }
+
+  if (!updateAvailable) {
+    checkForUpdates(true);
+    return;
+  }
+
+  sendLog("Đang tải bản cập nhật...");
+  sendUpdateState("downloading");
+  autoUpdater.downloadUpdate().catch((error) => {
+    sendLog(`Lỗi tải cập nhật: ${error.message}`);
+    sendUpdateState("available");
   });
 }
 
@@ -156,7 +184,7 @@ ipcMain.on("install-update", () => {
   if (updateReadyToInstall) {
     autoUpdater.quitAndInstall(false, true);
   } else {
-    checkForUpdates(true);
+    downloadUpdate();
   }
 });
 

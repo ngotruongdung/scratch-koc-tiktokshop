@@ -19,6 +19,7 @@ const statSent = document.getElementById("statSent");
 const statSkipped = document.getElementById("statSkipped");
 
 const terminalBody = document.getElementById("terminalBody");
+let updateAction = "check";
 
 // Clear console logs
 btnClearLogs.addEventListener("click", () => {
@@ -103,12 +104,20 @@ btnOpenFolder.addEventListener("click", () => {
 });
 
 function requestUpdateCheck() {
+  updateAction = "check";
   btnUpdate.disabled = true;
-  btnUpdate.innerHTML = "Dang kiem tra...";
+  btnUpdate.textContent = "Đang kiểm tra...";
   window.api.checkForUpdates();
 }
 
-btnUpdate.addEventListener("click", requestUpdateCheck);
+btnUpdate.addEventListener("click", () => {
+  if (updateAction === "download" || updateAction === "install") {
+    window.api.installUpdate();
+    return;
+  }
+
+  requestUpdateCheck();
+});
 
 // IPC: Log Receiver
 window.api.onLog((log) => {
@@ -185,27 +194,38 @@ window.api.onUpdateState((state) => {
   if (!btnUpdate) return;
 
   if (state.status === "checking") {
+    updateAction = "check";
     btnUpdate.disabled = true;
-    btnUpdate.innerHTML = "Dang kiem tra...";
+    btnUpdate.textContent = "Đang kiểm tra...";
+    return;
+  }
+
+  if (state.status === "available") {
+    updateAction = "download";
+    btnUpdate.disabled = false;
+    btnUpdate.textContent = state.version
+      ? `Tải cập nhật ${state.version}`
+      : "Tải cập nhật";
     return;
   }
 
   if (state.status === "downloading") {
+    updateAction = "download";
     btnUpdate.disabled = true;
-    btnUpdate.innerHTML = state.percent
-      ? `Dang tai ${state.percent}%`
-      : "Dang tai ban moi...";
+    btnUpdate.textContent = state.percent
+      ? `Đang tải ${state.percent}%`
+      : "Đang tải bản mới...";
     return;
   }
 
   if (state.status === "downloaded") {
+    updateAction = "install";
     btnUpdate.disabled = false;
-    btnUpdate.innerHTML = "Cap nhat & khoi dong lai";
-    btnUpdate.onclick = () => window.api.installUpdate();
+    btnUpdate.textContent = "Cập nhật & khởi động lại";
     return;
   }
 
+  updateAction = "check";
   btnUpdate.disabled = false;
-  btnUpdate.innerHTML = "Kiem tra cap nhat";
-  btnUpdate.onclick = requestUpdateCheck;
+  btnUpdate.textContent = "Kiểm tra cập nhật";
 });
