@@ -1,0 +1,11 @@
+node_modules/
+dist/
+errors/
+*.log
+results.csv
+results.jsonl
+pw-profile/
+tiktok-profile/
+.tmp-*/
+.git.broken-backup/
+bỏ

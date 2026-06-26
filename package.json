@@ -1,0 +1,51 @@
+{
+  "name": "tiktok-koc-worker",
+  "version": "1.0.1",
+  "description": "BOMAX KOC Worker App",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "keywords": [],
+  "author": "BOMAX",
+  "license": "ISC",
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "playwright-core": "^1.41.0"
+  },
+  "devDependencies": {
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.bomax.kocworker",
+    "productName": "BOMAX KOC Worker",
+    "directories": {
+      "output": "dist"
+    },
+    "artifactName": "BOMAX-KOC-Worker-${version}.${ext}",
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ngotruongdung",
+        "repo": "scratch-koc-tiktokshop"
+      }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "scraper.js",
+      "index.html",
+      "package.json"
+    ],
+    "asar": true
+  }
+}
